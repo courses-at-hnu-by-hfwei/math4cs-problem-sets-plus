@@ -1,0 +1,50 @@
+# LaTeX build artifacts
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+*.dvi
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.idx
+*.ilg
+*.ind
+*.xdv
+*.nav
+*.snm
+*.vrb
+.latexmkrc
+
+# PDF outputs (uncomment if you want to version PDFs)
+# *.pdf
+
+# VSCode
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+env/
+venv/
+.venv/
+ENV/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.tox/
+.coverage
+coverage.xml
+
+# OS
+.DS_Store
+Thumbs.db
