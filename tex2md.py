@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+r"""
 tex2md.py
 
 Convert the main content (title + sections) of `problems.tex` to Markdown
 and write the result to `README.md`.
 
-This is a lightweight, dependency-free converter tailored for the simple
-structure used in `problems.tex` (sections, itemize/enumerate, href/url,
-footnotes, simple inline macros). It does not require pandoc.
-"""
+This converter preserves heading levels (section/subsection/...),
+converts `itemize` -> bullets and `enumerate` -> numbered lists, and
+handles common inline macros like `\href` and `\url`.
+r"""
 from pathlib import Path
 import re
 import sys
@@ -52,10 +52,8 @@ def convert_inline(s: str) -> str:
     s = re.sub(r"\\footnote\{([^}]*)\}", r" (注: \1)", s)
     s = s.replace("~", " ")
     s = s.replace("\\%", "%")
-    # simple commands: \emph, \textbf, \label -> keep inner text
+    # simple commands: \emph, \textbf, \textit, \label -> keep inner text
     s = re.sub(r"\\(?:emph|textbf|textit|label)\{([^}]*)\}", r"\1", s)
-    # remove leftover braces used for grouping
-    s = s.replace("{", "").replace("}", "")
     # collapse multiple spaces
     s = re.sub(r"[ \t]+", " ", s)
     return s.strip()
@@ -71,7 +69,7 @@ def convert_item_blocks(s: str) -> str:
 
     s = re.sub(r"\\begin\{itemize\}(.*?)\\end\{itemize\}", repl_itemize, s, flags=re.S)
 
-    # enumerate (allow optional argument like [(1)])
+    # enumerate (allow optional argument like [(1)]) -> numbered lists
     def repl_enumerate(m: re.Match) -> str:
         inner = m.group(1)
         parts = re.split(r"\\item", inner)
@@ -83,21 +81,36 @@ def convert_item_blocks(s: str) -> str:
 
 
 def convert_sections(s: str) -> str:
-    # section and section* -> headers (use level 2; top-level title will be level 1)
-    def repl_section(m: re.Match) -> str:
+    # Replace deeper sections first
+    def repl_subsub(m: re.Match) -> str:
+        title = convert_inline(m.group(1))
+        return f"\n\n#### {title}\n\n"
+
+    def repl_sub(m: re.Match) -> str:
+        title = convert_inline(m.group(1))
+        return f"\n\n### {title}\n\n"
+
+    def repl_sec(m: re.Match) -> str:
         title = convert_inline(m.group(1))
         return f"\n\n## {title}\n\n"
 
-    s = re.sub(r"\\section\*?\{([^}]*)\}", repl_section, s)
+    def repl_para(m: re.Match) -> str:
+        title = convert_inline(m.group(1))
+        return f"\n\n##### {title}\n\n"
+
+    s = re.sub(r"\\subsubsection\*?\{([^}]*)\}", repl_subsub, s)
+    s = re.sub(r"\\subsection\*?\{([^}]*)\}", repl_sub, s)
+    s = re.sub(r"\\section\*?\{([^}]*)\}", repl_sec, s)
+    s = re.sub(r"\\paragraph\*?\{([^}]*)\}", repl_para, s)
     return s
 
 
 def cleanup(s: str) -> str:
-    # remove leftover simple LaTeX commands
+    # remove leftover environment wrappers (begin/end) but keep inline math
     s = re.sub(r"\\begin\{.*?\}|\\end\{.*?\}", "", s)
-    s = re.sub(r"\\[A-Za-z]+", "", s)
     # normalize blank lines
     s = re.sub(r"\n{3,}", "\n\n", s)
+    s = re.sub(r"[ \t]+", " ", s)
     return s.strip() + "\n"
 
 
@@ -106,9 +119,9 @@ def tex_to_markdown(tex_path: Path) -> str:
     title = extract_title(tex)
     body = extract_document_body(tex)
     body = remove_comments(body)
-    body = convert_inline(body)
-    body = convert_item_blocks(body)
     body = convert_sections(body)
+    body = convert_item_blocks(body)
+    body = convert_inline(body)
     body = cleanup(body)
 
     md_parts = []
